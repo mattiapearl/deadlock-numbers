@@ -1,4 +1,4 @@
-import { DeadlockItem, Hero, WeaponItem } from "@/lib/types";
+import { DeadlockItem, Hero, PurchaseBonus, WeaponItem } from "@/lib/types";
 
 export type SpiritScalingDetail = {
   statKey: string;
@@ -30,6 +30,13 @@ export type HeroGrowthRow = {
   baseMoveSpeed: number | null;
   baseSprint: number | null;
   baseStamina: number | null;
+  maxHealthWithBoons: number | null;
+  maxRegenWithBoons: number | null;
+  maxRegenWithBoonsAndSpirit: number | null;
+  maxSprintWithBoons: number | null;
+  maxSprintWithBoonsAndSpirit: number | null;
+  maxMoveSpeedWithBoons: number | null;
+  maxMoveSpeedWithBoonsAndSpirit: number | null;
   dmgGain: number | null;
   hpGain: number | null;
   spiritGain: number | null;
@@ -86,6 +93,68 @@ function formatStatName(statKey: string): string {
     .filter(Boolean)
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
+}
+
+function parseNumericValue(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string") {
+    const match = value.match(/-?\d+(?:\.\d+)?/);
+    if (!match) {
+      return null;
+    }
+    const parsed = Number.parseFloat(match[0]);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+function normalizePurchaseBonusList(list: PurchaseBonus[] | null | undefined): PurchaseBonus[] {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.filter((entry): entry is PurchaseBonus => Boolean(entry));
+}
+
+function sumPurchaseBonusValues(
+  list: PurchaseBonus[] | null | undefined,
+  valueTypes: readonly string[],
+): number {
+  if (!valueTypes.length) {
+    return 0;
+  }
+
+  const normalized = normalizePurchaseBonusList(list);
+
+  return normalized.reduce((total, bonus) => {
+    if (!bonus?.value_type || !valueTypes.includes(bonus.value_type)) {
+      return total;
+    }
+    const parsed = parseNumericValue(bonus.value);
+    return parsed !== null ? total + parsed : total;
+  }, 0);
+}
+
+function applyFlatAndPercentBonuses(base: number | null, flatBonus: number, percentBonus: number): number | null {
+  if (base === null || base === undefined) {
+    return null;
+  }
+
+  let adjusted = base;
+
+  if (flatBonus !== 0) {
+    adjusted += flatBonus;
+  }
+
+  if (percentBonus !== 0) {
+    adjusted *= 1 + percentBonus / 100;
+  }
+
+  return adjusted;
 }
 
 export function buildHeroGrowthRows(heroes: Hero[], items: DeadlockItem[]): HeroGrowthRow[] {
@@ -148,12 +217,49 @@ export function buildHeroGrowthRows(heroes: Hero[], items: DeadlockItem[]): Hero
       const dmgGain = hero.standard_level_up_upgrades?.MODIFIER_VALUE_BASE_BULLET_DAMAGE_FROM_LEVEL ?? null;
       const hpGain = hero.standard_level_up_upgrades?.MODIFIER_VALUE_BASE_HEALTH_FROM_LEVEL ?? null;
       const spiritGain = hero.standard_level_up_upgrades?.MODIFIER_VALUE_TECH_POWER ?? null;
+      const purchaseBonuses = hero.purchase_bonuses ?? null;
+      const vitalityBonuses = purchaseBonuses?.vitality ?? [];
+      const spiritBonuses = purchaseBonuses?.spirit ?? [];
+
+      const vitalityHealthFlatBonus = sumPurchaseBonusValues(vitalityBonuses, [
+        "MODIFIER_VALUE_BASE_HEALTH",
+        "MODIFIER_VALUE_MAX_HEALTH",
+      ]);
+      const vitalityHealthPercentBonus = sumPurchaseBonusValues(vitalityBonuses, [
+        "MODIFIER_VALUE_BASE_HEALTH_PERCENT",
+        "MODIFIER_VALUE_MAX_HEALTH_PERCENT",
+      ]);
+      const vitalityRegenFlatBonus = sumPurchaseBonusValues(vitalityBonuses, [
+        "MODIFIER_VALUE_BASE_HEALTH_REGEN",
+      ]);
+      const vitalityRegenPercentBonus = sumPurchaseBonusValues(vitalityBonuses, [
+        "MODIFIER_VALUE_BASE_HEALTH_REGEN_PERCENT",
+      ]);
+      const vitalityMoveSpeedFlatBonus = sumPurchaseBonusValues(vitalityBonuses, [
+        "MODIFIER_VALUE_MAX_MOVE_SPEED",
+        "MODIFIER_VALUE_BASE_MOVE_SPEED",
+      ]);
+      const vitalityMoveSpeedPercentBonus = sumPurchaseBonusValues(vitalityBonuses, [
+        "MODIFIER_VALUE_MAX_MOVE_SPEED_PERCENT",
+        "MODIFIER_VALUE_BASE_MOVE_SPEED_PERCENT",
+      ]);
+      const vitalitySprintFlatBonus = sumPurchaseBonusValues(vitalityBonuses, [
+        "MODIFIER_VALUE_SPRINT_SPEED",
+        "MODIFIER_VALUE_BASE_SPRINT_SPEED",
+      ]);
+      const vitalitySprintPercentBonus = sumPurchaseBonusValues(vitalityBonuses, [
+        "MODIFIER_VALUE_SPRINT_SPEED_PERCENT",
+        "MODIFIER_VALUE_BASE_SPRINT_SPEED_PERCENT",
+      ]);
+
+      const spiritFlatBonus = sumPurchaseBonusValues(spiritBonuses, ["MODIFIER_VALUE_TECH_POWER"]);
       const levels = Object.keys(hero.level_info ?? {})
         .map((level) => Number.parseInt(level, 10))
         .filter((level) => Number.isFinite(level));
       const maxLevel = levels.length > 0 ? Math.max(...levels) : 1;
       const levelIncrements = Math.max(maxLevel - 1, 0);
       const totalSpiritAtMaxLevel = (spiritGain ?? 0) * levelIncrements;
+      const totalSpiritFromBoonsAndLevels = totalSpiritAtMaxLevel + spiritFlatBonus;
 
       const maxGunDamage =
         baseBulletDamage !== null && dmgGain !== null
@@ -229,6 +335,54 @@ export function buildHeroGrowthRows(heroes: Hero[], items: DeadlockItem[]): Hero
       const maxLevelHp = baseHp !== null && hpGain !== null
         ? baseHp + hpGain * levelIncrements
         : baseHp;
+      const maxHealthWithBoons = applyFlatAndPercentBonuses(
+        maxLevelHp,
+        vitalityHealthFlatBonus,
+        vitalityHealthPercentBonus,
+      );
+
+      const maxRegenWithBoons = applyFlatAndPercentBonuses(
+        baseRegen,
+        vitalityRegenFlatBonus,
+        vitalityRegenPercentBonus,
+      );
+      const maxMoveSpeedWithBoons = applyFlatAndPercentBonuses(
+        baseMoveSpeed,
+        vitalityMoveSpeedFlatBonus,
+        vitalityMoveSpeedPercentBonus,
+      );
+      const maxSprintWithBoons = applyFlatAndPercentBonuses(
+        baseSprint,
+        vitalitySprintFlatBonus,
+        vitalitySprintPercentBonus,
+      );
+
+      const regenScalePerSpirit = parseNumericValue(scalingStats?.EBaseHealthRegen?.scale ?? null) ?? 0;
+      const moveSpeedScalePerSpirit = parseNumericValue(scalingStats?.EMaxMoveSpeed?.scale ?? null) ?? 0;
+      const sprintScalePerSpirit = parseNumericValue(scalingStats?.ESprintSpeed?.scale ?? null) ?? 0;
+
+      const regenSpiritBonus = regenScalePerSpirit * totalSpiritFromBoonsAndLevels;
+      const moveSpeedSpiritBonus = moveSpeedScalePerSpirit * totalSpiritFromBoonsAndLevels;
+      const sprintSpiritBonus = sprintScalePerSpirit * totalSpiritFromBoonsAndLevels;
+
+      const maxRegenWithBoonsAndSpirit =
+        maxRegenWithBoons !== null
+          ? maxRegenWithBoons + regenSpiritBonus
+          : baseRegen !== null
+            ? baseRegen + regenSpiritBonus
+            : null;
+      const maxMoveSpeedWithBoonsAndSpirit =
+        maxMoveSpeedWithBoons !== null
+          ? maxMoveSpeedWithBoons + moveSpeedSpiritBonus
+          : baseMoveSpeed !== null
+            ? baseMoveSpeed + moveSpeedSpiritBonus
+            : null;
+      const maxSprintWithBoonsAndSpirit =
+        maxSprintWithBoons !== null
+          ? maxSprintWithBoons + sprintSpiritBonus
+          : baseSprint !== null
+            ? baseSprint + sprintSpiritBonus
+            : null;
 
       const dpsGrowthPercent =
         baseDps !== null && baseDps !== 0 && maxGunDps !== null
@@ -278,6 +432,13 @@ export function buildHeroGrowthRows(heroes: Hero[], items: DeadlockItem[]): Hero
         baseMoveSpeed,
         baseSprint,
         baseStamina,
+        maxHealthWithBoons,
+        maxRegenWithBoons,
+        maxRegenWithBoonsAndSpirit,
+        maxSprintWithBoons,
+        maxSprintWithBoonsAndSpirit,
+        maxMoveSpeedWithBoons,
+        maxMoveSpeedWithBoonsAndSpirit,
         dmgGain,
         hpGain,
         spiritGain,

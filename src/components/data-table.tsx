@@ -367,12 +367,8 @@ export function DataTable<TData>({
     setColumnSearchTerm("");
   }, [columnSearchTerm, performColumnSearch]);
 
-  const leafColumns = React.useMemo(
-    () => table.getAllLeafColumns(),
-    [table, columnOrder, columnPinning.left, columnPinning.right],
-  );
-
   const filteredColumns = React.useMemo(() => {
+    const leafColumns = table.getAllLeafColumns();
     const search = columnSearchTerm.trim().toLowerCase();
     const leftPinned = Array.isArray(columnPinning.left) ? columnPinning.left : [];
     const rightPinned = Array.isArray(columnPinning.right) ? columnPinning.right : [];
@@ -409,7 +405,7 @@ export function DataTable<TData>({
       }
       return a.id.localeCompare(b.id);
     });
-  }, [columnOrder, columnPinning.left, columnPinning.right, columnSearchTerm, getColumnDisplayName, leafColumns]);
+  }, [columnOrder, columnPinning.left, columnPinning.right, columnSearchTerm, getColumnDisplayName, table]);
 
   const resetColumnManager = React.useCallback(() => {
     setColumnPinning({ left: [], right: [] });
@@ -554,7 +550,7 @@ export function DataTable<TData>({
             } else {
               try {
                 text = JSON.stringify(value);
-              } catch (error) {
+              } catch {
                 text = String(value);
               }
             }

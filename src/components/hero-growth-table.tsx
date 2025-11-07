@@ -226,6 +226,48 @@ const columns: ColumnDef<HeroGrowthRow>[] = [
     enableColumnFilter: false,
   },
   {
+    accessorKey: "maxHealthWithBoons",
+    header: "Max HP (Boons)",
+    cell: (info) => formatNumber(info.getValue<number | null>()),
+    enableColumnFilter: false,
+  },
+  {
+    accessorKey: "maxRegenWithBoons",
+    header: "Max Regen (Boons)",
+    cell: (info) => formatNumber(info.getValue<number | null>()),
+    enableColumnFilter: false,
+  },
+  {
+    accessorKey: "maxRegenWithBoonsAndSpirit",
+    header: "Max Regen (Boons+Spirit)",
+    cell: (info) => formatNumber(info.getValue<number | null>()),
+    enableColumnFilter: false,
+  },
+  {
+    accessorKey: "maxSprintWithBoons",
+    header: "Max Sprint (Boons)",
+    cell: (info) => formatNumber(info.getValue<number | null>()),
+    enableColumnFilter: false,
+  },
+  {
+    accessorKey: "maxSprintWithBoonsAndSpirit",
+    header: "Max Sprint (Boons+Spirit)",
+    cell: (info) => formatNumber(info.getValue<number | null>()),
+    enableColumnFilter: false,
+  },
+  {
+    accessorKey: "maxMoveSpeedWithBoons",
+    header: "Max Move Speed (Boons)",
+    cell: (info) => formatNumber(info.getValue<number | null>()),
+    enableColumnFilter: false,
+  },
+  {
+    accessorKey: "maxMoveSpeedWithBoonsAndSpirit",
+    header: "Max Move Speed (Boons+Spirit)",
+    cell: (info) => formatNumber(info.getValue<number | null>()),
+    enableColumnFilter: false,
+  },
+  {
     accessorKey: "dmgGain",
     header: "Dmg Gain",
     cell: (info) => formatNumber(info.getValue<number | null>()),

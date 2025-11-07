@@ -66,7 +66,7 @@ export default async function Home() {
             <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">View 2 · Weapon &amp; Visual Scaling</h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               Pick any combination of heroes and see how their core stats evolve with level. Compare gun DPS, per-shot damage,
-              max health, move speed, or spirit gain on a single timeline.
+              max health, or spirit gain on a single timeline.
             </p>
           </div>
 

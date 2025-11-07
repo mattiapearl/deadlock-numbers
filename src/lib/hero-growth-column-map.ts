@@ -57,6 +57,41 @@ export const HERO_GROWTH_COLUMN_DICTIONARY: GrowthColumnDictionary = {
     description: "Max gun damage × pellets ÷ cycle time",
     source: ["maxGunDamage", "items[].weapon_info.cycle_time"],
   },
+  maxHealthWithBoons: {
+    label: "Max HP (Boons)",
+    description: "Max level health after applying all vitality purchase bonuses",
+    source: "hero.purchase_bonuses.vitality[]",
+  },
+  maxRegenWithBoons: {
+    label: "Max Regen (Boons)",
+    description: "Base health regeneration adjusted by vitality purchase bonuses",
+    source: "hero.purchase_bonuses.vitality[]",
+  },
+  maxRegenWithBoonsAndSpirit: {
+    label: "Max Regen (Boons + Spirit)",
+    description: "Boons-adjusted regen plus spirit-scaling bonuses",
+    source: ["maxRegenWithBoons", "hero.scaling_stats.EBaseHealthRegen.scale"],
+  },
+  maxSprintWithBoons: {
+    label: "Max Sprint (Boons)",
+    description: "Base sprint speed adjusted by vitality purchase bonuses",
+    source: "hero.purchase_bonuses.vitality[]",
+  },
+  maxSprintWithBoonsAndSpirit: {
+    label: "Max Sprint (Boons + Spirit)",
+    description: "Boons-adjusted sprint speed including spirit scaling",
+    source: ["maxSprintWithBoons", "hero.scaling_stats.ESprintSpeed.scale"],
+  },
+  maxMoveSpeedWithBoons: {
+    label: "Max Move Speed (Boons)",
+    description: "Base move speed adjusted by vitality purchase bonuses",
+    source: "hero.purchase_bonuses.vitality[]",
+  },
+  maxMoveSpeedWithBoonsAndSpirit: {
+    label: "Max Move Speed (Boons + Spirit)",
+    description: "Boons-adjusted move speed plus spirit scaling",
+    source: ["maxMoveSpeedWithBoons", "hero.scaling_stats.EMaxMoveSpeed.scale"],
+  },
   maxSpinGunDps: {
     label: "Max Gun DPS (Max Spin)",
     description: "Max gun damage × pellets ÷ max spin cycle time",

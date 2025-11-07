@@ -3,6 +3,19 @@ export type HeroStartingStat = {
   display_stat_name?: string | null;
 };
 
+export type PurchaseBonus = {
+  value_type?: string | null;
+  value?: string | number | null;
+  tier?: number | null;
+};
+
+export type HeroPurchaseBonuses = {
+  spirit?: PurchaseBonus[] | null;
+  vitality?: PurchaseBonus[] | null;
+  weapon?: PurchaseBonus[] | null;
+  [key: string]: PurchaseBonus[] | null | undefined;
+};
+
 export type Hero = {
   id: number;
   class_name: string;
@@ -27,6 +40,7 @@ export type Hero = {
   } | null;
   level_info?: Record<string, { required_gold?: number | null } | undefined> | null;
   standard_level_up_upgrades?: Record<string, number | null | undefined> | null;
+  purchase_bonuses?: HeroPurchaseBonuses | null;
   scaling_stats?:
     | Record<
         string,

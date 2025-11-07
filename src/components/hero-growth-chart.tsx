@@ -17,8 +17,6 @@ type PreparedHero = {
   dmgGain: number | null;
   baseHp: number | null;
   hpGain: number | null;
-  baseMoveSpeed: number | null;
-  moveSpeedGain: number | null;
   baseSpirit: number;
   spiritGain: number;
   burstShotCount: number;
@@ -87,11 +85,9 @@ function prepareHero(hero: Hero, itemMap: Map<string, DeadlockItem>): PreparedHe
 
   const dmgGain = hero.standard_level_up_upgrades?.MODIFIER_VALUE_BASE_BULLET_DAMAGE_FROM_LEVEL ?? null;
   const hpGain = hero.standard_level_up_upgrades?.MODIFIER_VALUE_BASE_HEALTH_FROM_LEVEL ?? null;
-  const moveSpeedGain = hero.standard_level_up_upgrades?.MODIFIER_VALUE_BASE_MOVE_SPEED_FROM_LEVEL ?? null;
   const spiritGain = hero.standard_level_up_upgrades?.MODIFIER_VALUE_TECH_POWER ?? 0;
 
   const baseHp = hero.starting_stats?.max_health?.value ?? null;
-  const baseMoveSpeed = hero.starting_stats?.max_move_speed?.value ?? null;
   const baseSpirit = hero.starting_stats?.spirit_power?.value ?? 0;
 
   const levelNumbers = parseLevelNumbers(hero);
@@ -105,8 +101,6 @@ function prepareHero(hero: Hero, itemMap: Map<string, DeadlockItem>): PreparedHe
     dmgGain,
     baseHp,
     hpGain,
-    baseMoveSpeed,
-    moveSpeedGain,
     baseSpirit,
     spiritGain,
     burstShotCount,
@@ -139,12 +133,6 @@ function computeHp(hero: PreparedHero, level: number): number | null {
   if (hero.baseHp === null) return null;
   const gain = hero.hpGain ?? 0;
   return hero.baseHp + gain * (level - 1);
-}
-
-function computeMoveSpeed(hero: PreparedHero, level: number): number | null {
-  if (hero.baseMoveSpeed === null) return null;
-  const gain = hero.moveSpeedGain ?? 0;
-  return hero.baseMoveSpeed + gain * (level - 1);
 }
 
 function computeSpirit(hero: PreparedHero, level: number): number {
@@ -210,12 +198,6 @@ const metricDefinitions: MetricDefinition[] = [
     id: "hp",
     label: "Max Health",
     compute: (hero, level) => computeHp(hero, level),
-    format: formatNumber,
-  },
-  {
-    id: "moveSpeed",
-    label: "Move Speed",
-    compute: (hero, level) => computeMoveSpeed(hero, level),
     format: formatNumber,
   },
   {
