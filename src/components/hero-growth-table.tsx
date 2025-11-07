@@ -382,28 +382,43 @@ export function HeroGrowthTable({ data }: HeroGrowthTableProps) {
       columns={columns}
       toolbar={(context) => (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <input
               value={context.globalFilter}
-              onChange={(event) => context.setGlobalFilter(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value.endsWith(",")) {
+                  context.setGlobalFilter("");
+                } else {
+                  context.setGlobalFilter(value);
+                }
+              }}
               placeholder="Search heroes..."
               className="w-full sm:max-w-xs rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-600"
             />
-            <button
-              type="button"
-              onClick={() => context.exportToCsv({ filename: "hero-growth.csv" })}
-              className="w-full sm:w-auto rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              Export CSV
-            </button>
-
-            <button
-              type="button"
-              className="w-full sm:w-auto rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              onClick={() => setShowDisabled((prev) => !prev)}
-            >
-              {showDisabled ? "Hide disabled heroes" : "Show disabled heroes"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => context.exportToCsv({ filename: "hero-growth.csv" })}
+                className="rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Export CSV
+              </button>
+              <button
+                type="button"
+                onClick={context.openColumnManager}
+                className="rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Manage columns
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-zinc-200 px-3 py-2 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                onClick={() => setShowDisabled((prev) => !prev)}
+              >
+                {showDisabled ? "Hide disabled heroes" : "Show disabled heroes"}
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 self-end text-xs text-zinc-500 dark:text-zinc-400 sm:self-auto">

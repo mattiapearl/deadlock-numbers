@@ -357,49 +357,69 @@ export function HeroAbilityTable({ data }: HeroAbilityTableProps) {
       data={filteredData}
       columns={columns}
       initialPageSize={50}
-      toolbar={(context) => (
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2">
-            <input
-              value={context.globalFilter}
-              onChange={(event) => context.setGlobalFilter(event.target.value)}
-              placeholder="Search abilities..."
-              className="w-full sm:w-60 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-600"
-            />
-            <button
-              type="button"
-              onClick={() => context.exportToCsv({ filename: "hero-abilities.csv" })}
-              className="rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-            >
-              Export CSV
-            </button>
+      toolbar={(context) => {
+        const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+          const value = event.target.value;
+          if (value.endsWith(",")) {
+            context.setGlobalFilter("");
+          } else {
+            context.setGlobalFilter(value);
+          }
+        };
+
+        return (
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <input
+                value={context.globalFilter}
+                onChange={handleSearchChange}
+                placeholder="Search abilities..."
+                className="w-full sm:w-60 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-600"
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => context.exportToCsv({ filename: "hero-abilities.csv" })}
+                  className="rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  Export CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={context.openColumnManager}
+                  className="rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  Manage columns
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:flex-row sm:items-center sm:gap-3">
+              <span>
+                {visibleCount} / {totalCount} abilities
+              </span>
+              <button
+                type="button"
+                className="rounded-md border border-zinc-200 px-2 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                onClick={() => setShowDisabled((prev) => !prev)}
+              >
+                {showDisabled ? "Hide disabled heroes" : "Show disabled heroes"}
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-zinc-200 px-2 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                onClick={() => {
+                  context.setGlobalFilter("");
+                  context.table.resetSorting();
+                  context.table.resetColumnFilters();
+                  setShowDisabled(false);
+                }}
+              >
+                Reset view
+              </button>
+            </div>
           </div>
-          <div className="flex flex-col gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:flex-row sm:items-center sm:gap-3">
-            <span>
-              {visibleCount} / {totalCount} abilities
-            </span>
-            <button
-              type="button"
-              className="rounded-md border border-zinc-200 px-2 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              onClick={() => setShowDisabled((prev) => !prev)}
-            >
-              {showDisabled ? "Hide disabled heroes" : "Show disabled heroes"}
-            </button>
-            <button
-              type="button"
-              className="rounded-md border border-zinc-200 px-2 py-1 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              onClick={() => {
-                context.setGlobalFilter("");
-                context.table.resetSorting();
-                context.table.resetColumnFilters();
-                setShowDisabled(false);
-              }}
-            >
-              Reset view
-            </button>
-          </div>
-        </div>
-      )}
+        );
+      }}
       footer={(context) => (
         <div className="flex flex-col items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:flex-row">
           <span>
