@@ -79,6 +79,8 @@ export type WeaponInfo = {
   max_spin_cycle_time?: number | null;
   burst_shot_count?: number | null;
   intra_burst_cycle_time?: number | null;
+  damage_falloff_start_range?: number | null;
+  damage_falloff_end_range?: number | null;
 };
 
 export type WeaponItem = ItemBase & {
@@ -101,7 +103,7 @@ export type AbilityItem = ItemBase & {
   } | null;
   description?: {
     desc?: string | null;
-    [key: string]: string | null;
+    [key: string]: string | null | undefined;
   } | null;
   upgrades?: Array<{
     property_upgrades?: Array<{
