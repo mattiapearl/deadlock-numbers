@@ -62,15 +62,20 @@ function getColumnSizeStyle<TData>(column: Column<TData>): React.CSSProperties {
   return style;
 }
 
-function deriveColumnId<TData>(column: ColumnDef<TData, unknown>, index: number): string {
+const deriveColumnId = <TData,>(column: ColumnDef<TData, unknown>, index: number): string => {
   if (typeof column.id === "string" && column.id.length > 0) {
     return column.id;
   }
-  if (typeof column.accessorKey === "string" && column.accessorKey.length > 0) {
-    return column.accessorKey;
+
+  if ("accessorKey" in column) {
+    const accessorKey = column.accessorKey;
+    if (typeof accessorKey === "string" && accessorKey.length > 0) {
+      return accessorKey;
+    }
   }
+
   return `column_${index}`;
-}
+};
 
 export type DataTableContext<TData> = {
   table: Table<TData>;
@@ -187,26 +192,26 @@ export function DataTable<TData>({
     setColumnSearchTerm("");
   }, []);
 
-  const getColumnDisplayName = React.useCallback(
-    (column: Column<TData>) => {
-      const header = column.columnDef.header;
-      if (typeof header === "string" || typeof header === "number") {
-        return String(header);
-      }
+  const getColumnDisplayName = React.useCallback((column: Column<TData>) => {
+    const header = column.columnDef.header;
+    if (typeof header === "string" || typeof header === "number") {
+      return String(header);
+    }
 
-      const meta = column.columnDef.meta as { label?: string } | undefined;
-      if (meta?.label) {
-        return meta.label;
-      }
+    const meta = column.columnDef.meta as { label?: string } | undefined;
+    if (meta?.label) {
+      return meta.label;
+    }
 
-      if (typeof column.columnDef.accessorKey === "string" && column.columnDef.accessorKey.length > 0) {
-        return column.columnDef.accessorKey;
+    if ("accessorKey" in column.columnDef) {
+      const accessorKey = column.columnDef.accessorKey;
+      if (typeof accessorKey === "string" && accessorKey.length > 0) {
+        return accessorKey;
       }
+    }
 
-      return column.id;
-    },
-    [],
-  );
+    return column.id;
+  }, []);
 
   const pinColumn = React.useCallback(
     (columnId: string, position: "left" | "right" | "none") => {
