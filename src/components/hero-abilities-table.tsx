@@ -87,6 +87,7 @@ function renderDamageCell(
   }
 
   const label = formatDamageComponentLabel(key);
+  const note = component.note;
   const formatted = formatNumber(info.getValue() as number | null);
 
   if (formatted === "—") {
@@ -94,6 +95,7 @@ function renderDamageCell(
       <div className="flex flex-col">
         <span>—</span>
         <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{label}</span>
+        {note ? <span className="text-[11px] text-sky-600 dark:text-sky-400">{note}</span> : null}
       </div>
     );
   }
@@ -104,6 +106,7 @@ function renderDamageCell(
     <div className="flex flex-col">
       <span>{displayValue}</span>
       <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{label}</span>
+      {note ? <span className="text-[11px] text-sky-600 dark:text-sky-400">{note}</span> : null}
     </div>
   );
 }
@@ -151,6 +154,13 @@ const BASE_COLUMNS: ColumnDef<HeroAbilityRow>[] = [
           {ability.abilityDescription && (
             <span className="text-[11px] text-zinc-500 dark:text-zinc-400">{ability.abilityDescription}</span>
           )}
+          {ability.assumptionNotes.length ? (
+            <ul className="mt-1 space-y-1 text-[11px] text-sky-600 dark:text-sky-400">
+              {ability.assumptionNotes.map((note) => (
+                <li key={note}>{note}</li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       );
     },

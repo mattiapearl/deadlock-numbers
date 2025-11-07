@@ -377,6 +377,11 @@ export function HeroAbilitiesChart({ data }: HeroAbilityChartProps) {
                       {ability.abilityName}
                       {categoryLabel ? <span className="ml-1 inline-flex rounded bg-zinc-200 px-1 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">{categoryLabel}</span> : null}
                     </span>
+                    {ability.assumptionNotes.length ? (
+                      <span className="pl-6 text-[11px] text-sky-600 dark:text-sky-400">
+                        {ability.assumptionNotes.join(" · ")}
+                      </span>
+                    ) : null}
                   </label>
                 );
               })}

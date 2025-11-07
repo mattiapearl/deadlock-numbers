@@ -40,10 +40,12 @@ export type HeroAbilityRow = {
       scalingBase: number | null;
       scalingMax: number | null;
       category: "burst" | "dps";
+      note?: string;
     }
   >;
   burstDamageComponentOrder: string[];
   dpsDamageComponentOrder: string[];
+  assumptionNotes: string[];
 };
 
 type AbilityPropertyUpgrade = NonNullable<
@@ -179,7 +181,32 @@ function isDamageProperty(key: string, property: ItemProperty | undefined): bool
   return cssClass.includes("damage");
 }
 
+const abilityDamageKeyOverrides: Record<string, string[]> = {
+  citadel_ability_lash_down_strike: ["StompDamage", "StompDamagePerMeterPrimary"],
+};
+
+const abilityPerMeterAverages: Record<string, Record<string, number>> = {
+  citadel_ability_lash_down_strike: {
+    StompDamagePerMeterPrimary: 20,
+  },
+};
+
+const abilityForcedNotes: Record<string, string> = {
+  citadel_ability_lash_down_strike: "Ground Strike damage per meter is multiplied by a forced 20 m average height.",
+};
+
+const abilityComponentNotes: Record<string, Record<string, string>> = {
+  citadel_ability_lash_down_strike: {
+    StompDamagePerMeterPrimary: "20 m average height multiplier applied",
+  },
+};
+
 function pickDamageKeys(ability: AbilityItem): string[] {
+  const overrideKeys = abilityDamageKeyOverrides[ability.class_name];
+  if (overrideKeys) {
+    return overrideKeys;
+  }
+
   const properties = ability.properties ?? {};
   const important = getImportantPropertyKeys(ability).filter((key) => isDamageProperty(key, properties[key]));
 
@@ -339,29 +366,50 @@ export function buildHeroAbilityRows(heroes: Hero[], items: DeadlockItem[]): Her
           let scalingBaseSum = 0;
           let scalingMaxSum = 0;
           const damageComponents: HeroAbilityRow["damageComponents"] = {};
+          const assumptionNotes = new Set<string>();
 
           for (const key of damageKeys) {
             if (!properties[key] && !propertyUpgradeMap.has(key)) {
               continue;
             }
             const stats = getPropertyStats(key);
-            if (stats.base !== null) {
-              baseDamageSum += stats.base;
+            const perMeterMultiplier = abilityPerMeterAverages[abilityItem.class_name]?.[key] ?? null;
+            const adjustedStats =
+              perMeterMultiplier !== null
+                ? {
+                    base: stats.base !== null ? stats.base * perMeterMultiplier : null,
+                    baseMax: stats.baseMax !== null ? stats.baseMax * perMeterMultiplier : null,
+                    scale: stats.scale * perMeterMultiplier,
+                    scaleMax: stats.scaleMax * perMeterMultiplier,
+                  }
+                : stats;
+            if (perMeterMultiplier !== null) {
+              const forcedNote = abilityForcedNotes[abilityItem.class_name];
+              if (forcedNote) {
+                assumptionNotes.add(forcedNote);
+              }
             }
-            if (stats.baseMax !== null) {
-              baseDamageMaxSum += stats.baseMax;
-            } else if (stats.base !== null) {
-              baseDamageMaxSum += stats.base;
+
+            if (adjustedStats.base !== null) {
+              baseDamageSum += adjustedStats.base;
             }
-            scalingBaseSum += stats.scale;
-            scalingMaxSum += stats.scaleMax;
+            if (adjustedStats.baseMax !== null) {
+              baseDamageMaxSum += adjustedStats.baseMax;
+            } else if (adjustedStats.base !== null) {
+              baseDamageMaxSum += adjustedStats.base;
+            }
+            scalingBaseSum += adjustedStats.scale;
+            scalingMaxSum += adjustedStats.scaleMax;
 
             damageComponents[key] = {
-              damageBase: stats.base,
-              damageMax: stats.baseMax ?? stats.base ?? null,
-              scalingBase: stats.scale !== 0 ? stats.scale : null,
-              scalingMax: stats.scaleMax !== 0 ? stats.scaleMax : null,
+              damageBase: adjustedStats.base,
+              damageMax: adjustedStats.baseMax ?? adjustedStats.base ?? null,
+              scalingBase: adjustedStats.scale !== 0 ? adjustedStats.scale : null,
+              scalingMax: adjustedStats.scaleMax !== 0 ? adjustedStats.scaleMax : null,
               category: getDamageCategory(key),
+              note:
+                abilityComponentNotes[abilityItem.class_name]?.[key] ??
+                (perMeterMultiplier !== null ? `Scaled by ${perMeterMultiplier} m average height` : undefined),
             };
           }
 
@@ -472,6 +520,7 @@ export function buildHeroAbilityRows(heroes: Hero[], items: DeadlockItem[]): Her
             damageComponents,
             burstDamageComponentOrder,
             dpsDamageComponentOrder,
+            assumptionNotes: Array.from(assumptionNotes),
           } satisfies HeroAbilityRow;
         })
         .filter((row): row is HeroAbilityRow => row !== null);
