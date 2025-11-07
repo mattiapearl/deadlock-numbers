@@ -216,8 +216,10 @@ export function DataTable<TData>({
   const pinColumn = React.useCallback(
     (columnId: string, position: "left" | "right" | "none") => {
       setColumnPinning((prev) => {
-        const nextLeft = prev.left.filter((id) => id !== columnId);
-        const nextRight = prev.right.filter((id) => id !== columnId);
+        const prevLeft = Array.isArray(prev.left) ? prev.left : [];
+        const prevRight = Array.isArray(prev.right) ? prev.right : [];
+        const nextLeft = prevLeft.filter((id) => id !== columnId);
+        const nextRight = prevRight.filter((id) => id !== columnId);
 
         if (position === "left") {
           return {
@@ -263,8 +265,11 @@ export function DataTable<TData>({
   const movePinnedColumn = React.useCallback((columnId: string, direction: number) => {
     if (direction === 0) return;
     setColumnPinning((prev) => {
-      if (prev.left.includes(columnId)) {
-        const updatedLeft = [...prev.left];
+      const prevLeft = Array.isArray(prev.left) ? prev.left : [];
+      const prevRight = Array.isArray(prev.right) ? prev.right : [];
+
+      if (prevLeft.includes(columnId)) {
+        const updatedLeft = [...prevLeft];
         const index = updatedLeft.indexOf(columnId);
         const target = index + direction;
         if (target < 0 || target >= updatedLeft.length) {
@@ -273,8 +278,8 @@ export function DataTable<TData>({
         [updatedLeft[index], updatedLeft[target]] = [updatedLeft[target], updatedLeft[index]];
         return { ...prev, left: updatedLeft };
       }
-      if (prev.right.includes(columnId)) {
-        const updatedRight = [...prev.right];
+      if (prevRight.includes(columnId)) {
+        const updatedRight = [...prevRight];
         const index = updatedRight.indexOf(columnId);
         const target = index + direction;
         if (target < 0 || target >= updatedRight.length) {
@@ -369,16 +374,29 @@ export function DataTable<TData>({
 
   const filteredColumns = React.useMemo(() => {
     const search = columnSearchTerm.trim().toLowerCase();
+    const leftPinned = Array.isArray(columnPinning.left) ? columnPinning.left : [];
+    const rightPinned = Array.isArray(columnPinning.right) ? columnPinning.right : [];
+
     const result = search
       ? leafColumns.filter((column) => {
           const label = getColumnDisplayName(column).toLowerCase();
-          return column.id.toLowerCase().includes(search) || label.includes(search);
+          const baseMatch = column.id.toLowerCase().includes(search) || label.includes(search);
+          if (baseMatch) {
+            return true;
+          }
+          if ("accessorKey" in column.columnDef) {
+            const accessorKey = column.columnDef.accessorKey;
+            if (typeof accessorKey === "string" && accessorKey.toLowerCase().includes(search)) {
+              return true;
+            }
+          }
+          return false;
         })
       : leafColumns;
 
     return [...result].sort((a, b) => {
-      const aPinned = columnPinning.left.includes(a.id) ? 0 : columnPinning.right.includes(a.id) ? 1 : 2;
-      const bPinned = columnPinning.left.includes(b.id) ? 0 : columnPinning.right.includes(b.id) ? 1 : 2;
+      const aPinned = leftPinned.includes(a.id) ? 0 : rightPinned.includes(a.id) ? 1 : 2;
+      const bPinned = leftPinned.includes(b.id) ? 0 : rightPinned.includes(b.id) ? 1 : 2;
       if (aPinned !== bPinned) {
         return aPinned - bPinned;
       }
@@ -808,18 +826,20 @@ export function DataTable<TData>({
                 {filteredColumns.length ? (
                   <div className="grid gap-3 md:grid-cols-2">
                     {filteredColumns.map((column) => {
-                      const isPinnedLeft = columnPinning.left.includes(column.id);
-                      const isPinnedRight = columnPinning.right.includes(column.id);
+                      const leftPinned = Array.isArray(columnPinning.left) ? columnPinning.left : [];
+                      const rightPinned = Array.isArray(columnPinning.right) ? columnPinning.right : [];
+                      const isPinnedLeft = leftPinned.includes(column.id);
+                      const isPinnedRight = rightPinned.includes(column.id);
                       const pinLabel = isPinnedLeft ? "Pinned Left" : isPinnedRight ? "Pinned Right" : "Not Pinned";
                       const orderIndex = columnOrder.indexOf(column.id);
                       const canMoveEarlier = orderIndex > 0;
                       const canMoveLater = orderIndex !== -1 && orderIndex < columnOrder.length - 1;
-                      const leftIndex = columnPinning.left.indexOf(column.id);
-                      const rightIndex = columnPinning.right.indexOf(column.id);
+                      const leftIndex = leftPinned.indexOf(column.id);
+                      const rightIndex = rightPinned.indexOf(column.id);
                       const canMovePinnedUp = isPinnedLeft && leftIndex > 0;
-                      const canMovePinnedDown = isPinnedLeft && leftIndex < columnPinning.left.length - 1;
+                      const canMovePinnedDown = isPinnedLeft && leftIndex < leftPinned.length - 1;
                       const canMovePinnedRightUp = isPinnedRight && rightIndex > 0;
-                      const canMovePinnedRightDown = isPinnedRight && rightIndex < columnPinning.right.length - 1;
+                      const canMovePinnedRightDown = isPinnedRight && rightIndex < rightPinned.length - 1;
 
                       return (
                         <div
