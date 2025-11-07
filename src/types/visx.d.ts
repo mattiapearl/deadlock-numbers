@@ -22,11 +22,13 @@ declare module "@visx/responsive" {
 declare module "@visx/xychart" {
   import * as React from "react";
 
-  export const XYChart: React.FC<any>;
-  export const AnimatedAxis: React.FC<any>;
-  export const AnimatedGrid: React.FC<any>;
-  export const AnimatedLineSeries: React.FC<any>;
-  export const Tooltip: React.FC<any>;
+  type VisxComponentProps = Record<string, unknown>;
+
+  export const XYChart: React.ComponentType<VisxComponentProps>;
+  export const AnimatedAxis: React.ComponentType<VisxComponentProps>;
+  export const AnimatedGrid: React.ComponentType<VisxComponentProps>;
+  export const AnimatedLineSeries: React.ComponentType<VisxComponentProps>;
+  export const Tooltip: React.ComponentType<VisxComponentProps>;
 }
 
 

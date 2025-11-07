@@ -16,6 +16,7 @@ export type Hero = {
   images?: {
     icon_image_small?: string | null;
     icon_image_small_webp?: string | null;
+    icon_hero_card?: string | null;
   } | null;
   items?: Record<string, string> | null;
   starting_stats?: {
