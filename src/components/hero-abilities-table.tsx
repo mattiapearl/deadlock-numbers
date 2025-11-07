@@ -366,6 +366,13 @@ export function HeroAbilityTable({ data }: HeroAbilityTableProps) {
               placeholder="Search abilities..."
               className="w-full sm:w-60 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-zinc-600"
             />
+            <button
+              type="button"
+              onClick={() => context.exportToCsv({ filename: "hero-abilities.csv" })}
+              className="rounded-md border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            >
+              Export CSV
+            </button>
           </div>
           <div className="flex flex-col gap-2 text-xs text-zinc-500 dark:text-zinc-400 sm:flex-row sm:items-center sm:gap-3">
             <span>

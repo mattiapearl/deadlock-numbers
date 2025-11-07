@@ -82,7 +82,7 @@ export function MetricLineChart({
     header: string | null;
     entries: Array<{ key: string; color: string; value: number }>;
   } | null>(null);
-  const rafRef = React.useRef<number>();
+  const rafRef = React.useRef<number | undefined>(undefined);
 
   const scheduleLegendSync = React.useCallback(() => {
     if (typeof window === "undefined") {

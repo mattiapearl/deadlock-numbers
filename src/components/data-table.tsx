@@ -75,6 +75,7 @@ export type DataTableContext<TData> = {
   setColumnPinning: React.Dispatch<React.SetStateAction<ColumnPinningState>>;
   canScrollLeft: boolean;
   canScrollRight: boolean;
+  exportToCsv: (options?: { filename?: string }) => void;
 };
 
 export type DataTableProps<TData> = {
@@ -226,6 +227,79 @@ export function DataTable<TData>({
       setColumnPinning,
       canScrollLeft,
       canScrollRight,
+      exportToCsv: ({ filename = "table-export.csv" } = {}) => {
+        const columnsForExport = table.getVisibleLeafColumns();
+        if (!columnsForExport.length) {
+          return;
+        }
+
+        const escapeValue = (value: unknown): string => {
+          if (value === null || value === undefined) {
+            return "";
+          }
+          let text: string;
+          if (typeof value === "object") {
+            if (value instanceof Date) {
+              text = value.toISOString();
+            } else {
+              try {
+                text = JSON.stringify(value);
+              } catch (error) {
+                text = String(value);
+              }
+            }
+          } else {
+            text = String(value);
+          }
+
+          if (text.includes("\"")) {
+            text = text.replace(/"/g, "\"\"");
+          }
+          if (/[",\n]/.test(text)) {
+            text = `"${text}"`;
+          }
+          return text;
+        };
+
+        const headerRow = columnsForExport
+          .map((column) => {
+            const header = column.columnDef.header;
+            if (typeof header === "string") {
+              return escapeValue(header);
+            }
+            if (typeof header === "number") {
+              return escapeValue(String(header));
+            }
+            if (typeof header === "function") {
+              return escapeValue(column.id);
+            }
+            if (React.isValidElement(header)) {
+              return escapeValue(column.id);
+            }
+            return escapeValue(column.id);
+          })
+          .join(",");
+
+        const rowLines = table.getRowModel().rows.map((row) => {
+          const values = columnsForExport.map((column) => {
+            const cellValue = row.getValue(column.id);
+            return escapeValue(cellValue);
+          });
+          return values.join(",");
+        });
+
+        const csvContent = [headerRow, ...rowLines].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      },
     }),
     [
       table,
@@ -236,6 +310,7 @@ export function DataTable<TData>({
       columnPinning,
       canScrollLeft,
       canScrollRight,
+      table,
     ],
   );
 
