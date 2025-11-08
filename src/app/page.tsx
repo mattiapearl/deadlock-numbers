@@ -7,6 +7,7 @@ import { buildHeroGrowthRows } from "@/lib/hero-growth";
 import { buildHeroAbilityRows } from "@/lib/hero-abilities";
 import type { LucideIcon } from "lucide-react";
 import { Github, Twitch, Youtube} from "lucide-react";
+import { PageViewCounter } from "@/components/page-view-counter";
 
 type FooterLinkProps = {
   href: string;
@@ -48,6 +49,7 @@ export default async function Home() {
             standout DPS curves, identify tanky frontliners, or spot builds that spike as they reach max level.
           </p>
           <div className="flex flex-wrap items-center gap-3">
+            <PageViewCounter />
             <a
               href="https://github.com/mattiapearl/deadlock-numbers"
               target="_blank"
