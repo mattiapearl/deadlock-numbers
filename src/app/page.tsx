@@ -6,7 +6,7 @@ import { getHeroes, getItems } from "@/lib/deadlock-api";
 import { buildHeroGrowthRows } from "@/lib/hero-growth";
 import { buildHeroAbilityRows } from "@/lib/hero-abilities";
 import type { LucideIcon } from "lucide-react";
-import { Github, Twitch, Youtube } from "lucide-react";
+import { Github, Twitch, Youtube} from "lucide-react";
 
 type FooterLinkProps = {
   href: string;
@@ -47,6 +47,38 @@ export default async function Home() {
             Compare how each hero&apos;s primary weapon and survivability scale with level. Sort and filter the table to find
             standout DPS curves, identify tanky frontliners, or spot builds that spike as they reach max level.
           </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <a
+              href="https://github.com/mattiapearl/deadlock-numbers"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
+            >
+              View on GitHub
+            </a>
+          </div>
+        </section>
+
+        <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-6 py-5 shadow-sm transition hover:border-blue-300 dark:border-blue-800 dark:bg-blue-950/50 dark:shadow-none">
+          <div className="flex-1 min-w-[220px]">
+          <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-200">Need something changed?</h2>
+          <p className="mt-2 text-sm text-blue-900 dark:text-blue-200">
+            <span className="font-medium">Discord · mattia2604</span>
+          </p>
+          <p className="mt-1 text-sm text-blue-900/80 dark:text-blue-200/80">
+            Ping me for bug reports, data requests, or feature ideas and I&apos;ll follow up as soon as possible.
+          </p>
+          </div>
+          <div className="flex flex-col gap-2 min-w-[180px]">
+            <a
+              href="https://github.com/mattiapearl/deadlock-numbers/issues/new"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center justify-center rounded-md border border-blue-500 px-4 py-2 text-sm font-medium text-blue-900 transition hover:bg-blue-100 dark:border-blue-600 dark:text-blue-100 dark:hover:bg-blue-900/40"
+            >
+              Or open a GitHub issue
+            </a>
+          </div>
         </section>
 
         <section className="space-y-6">
@@ -139,6 +171,10 @@ export default async function Home() {
               icon={Github}
               label="Manuel on GitHub Sponsors"
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">For any suggestion feel free to contact me on Discord: mattia2604</p>
           </div>
         </div>
       </footer>

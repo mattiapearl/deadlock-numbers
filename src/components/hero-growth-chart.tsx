@@ -233,9 +233,12 @@ export function HeroGrowthChart({ heroes, items }: HeroGrowthChartProps) {
   const [showDisabled, setShowDisabled] = React.useState(false);
 
   const [selectedMetricId, setSelectedMetricId] = React.useState<string>(metricDefinitions[0]?.id ?? "");
-  const [selectedHeroIds, setSelectedHeroIds] = React.useState<number[]>(() =>
-    preparedHeroes.slice(0, 4).map((hero) => hero.id),
-  );
+  const [selectedHeroIds, setSelectedHeroIds] = React.useState<number[]>(() => {
+    return preparedHeroes
+      .filter((hero) => !(heroes.find((h) => h.id === hero.id)?.disabled ?? false))
+      .slice(0, 4)
+      .map((hero) => hero.id);
+  });
 
   const filteredHeroes = React.useMemo(() => {
     const normalizedQuery = heroSearch.trim().toLowerCase();
@@ -297,7 +300,11 @@ export function HeroGrowthChart({ heroes, items }: HeroGrowthChartProps) {
   };
 
   const handleSelectAll = () => {
-    setSelectedHeroIds(filteredHeroes.map((hero) => hero.id));
+    setSelectedHeroIds(
+      filteredHeroes
+        .filter((hero) => showDisabled || !(heroes.find((h) => h.id === hero.id)?.disabled ?? false))
+        .map((hero) => hero.id),
+    );
   };
 
   const handleClearSelection = () => {
