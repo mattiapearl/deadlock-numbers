@@ -1221,7 +1221,7 @@ export function buildHeroAbilityRows(heroes: Hero[], items: DeadlockItem[]): Her
               key: "Slow",
               label: "Slow",
               type: "slow",
-              duration: slowDurationRange ?? undefined,
+              duration: slowDurationRange ?? { base: null, max: null },
               magnitude: slowMagnitudeRange,
               magnitudeUnit: "%",
             });

@@ -148,7 +148,9 @@ export function MetricLineChart({
                 <AnimatedAxis
                   orientation="left"
                   label={yLabel}
-                  tickFormat={(value) => valueFormatter(mapValueForDisplay(value as number))}
+                  tickFormat={(value: unknown) =>
+                    valueFormatter(mapValueForDisplay(typeof value === "number" ? value : Number(value)))
+                  }
                 />
                 <AnimatedGrid columns={false} />
 
