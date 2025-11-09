@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { HeroAbilityRow } from "@/lib/hero-abilities";
+import {
+  AbilityDamageSummary,
+  AbilityDamageTotals,
+  AbilityTag,
+  AbilityValueRange,
+  HeroAbilityRow,
+} from "@/lib/hero-abilities";
 import {
   MetricLineChart,
   type MetricLineChartSeries,
@@ -24,53 +30,154 @@ type MetricDefinition = {
 
 type AbilityLevelBand = "lv0" | "max";
 
+const TAG_LABELS: Record<AbilityTag, string> = {
+  burst: "Burst",
+  sustained: "DPS",
+  "crowd-control": "CC",
+  buff: "Buff",
+  debuff: "Debuff",
+};
+
+function computeValueAtSpirit(
+  intercept: number | null | undefined,
+  scaling: number | null | undefined,
+  spirit: number,
+): number | null {
+  if (intercept === null && scaling === null) {
+    return null;
+  }
+  const interceptValue = intercept ?? 0;
+  const scalingValue = scaling ?? 0;
+  return interceptValue + scalingValue * spirit;
+}
+
+function getRangeValue(range: AbilityValueRange | undefined, band: AbilityLevelBand): number | null {
+  if (!range) {
+    return null;
+  }
+  return band === "lv0" ? range.base ?? null : range.max ?? null;
+}
+
+const TOTALS_EPSILON = 1e-6;
+
+function totalsApproximatelyEqual(a: AbilityDamageTotals, b: AbilityDamageTotals): boolean {
+  return (
+    Math.abs(a.interceptBase - b.interceptBase) <= TOTALS_EPSILON &&
+    Math.abs(a.interceptMax - b.interceptMax) <= TOTALS_EPSILON &&
+    Math.abs(a.scalingBase - b.scalingBase) <= TOTALS_EPSILON &&
+    Math.abs(a.scalingMax - b.scalingMax) <= TOTALS_EPSILON
+  );
+}
+
+function createDamageVariantConfigs(summary: AbilityDamageSummary): Array<{
+  key: string;
+  label: string;
+  totals: AbilityDamageTotals;
+}> {
+  if (summary.value.base === null && summary.value.max === null) {
+    return [];
+  }
+
+  if (totalsApproximatelyEqual(summary.totals.min, summary.totals.max)) {
+    return [{ key: "total", label: "", totals: summary.totals.min }];
+  }
+
+  return [
+    { key: "min", label: "Min", totals: summary.totals.min },
+    { key: "max", label: "Max", totals: summary.totals.max },
+  ];
+}
+
+function computeDamageFromTotals(
+  totals: AbilityDamageTotals,
+  spirit: number,
+  band: AbilityLevelBand,
+): number {
+  const intercept = band === "lv0" ? totals.interceptBase : totals.interceptMax;
+  const scaling = band === "lv0" ? totals.scalingBase : totals.scalingMax;
+  return intercept + scaling * spirit;
+}
+
 const baseMetricDefinitions: MetricDefinition[] = [
   {
     id: "burstDamage",
     label: "Burst Damage per Cast",
     description: "Total ability burst damage using current spirit and charges",
-    getBaseValue: (ability) => ability.burstDamageBase,
-    getMaxValue: (ability) => ability.burstDamageMax,
+    getBaseValue: (ability) => ability.metrics.damage.burst.value.base,
+    getMaxValue: (ability) => ability.metrics.damage.burst.value.max,
     computeAtSpirit: (ability, spirit, band) => {
-      const referenceSpirit = band === "lv0" ? ability.baseSpiritPower : ability.maxSpiritPower;
-      const scaling = band === "lv0" ? ability.spiritScalingBase : ability.spiritScalingMax;
-      const referenceValue = band === "lv0" ? ability.burstDamageBase : ability.burstDamageMax;
-      if (referenceValue === null) {
-        return null;
-      }
-
-      const effectiveScaling = scaling ?? 0;
-      const intercept = referenceValue - referenceSpirit * effectiveScaling;
-      return intercept + spirit * effectiveScaling;
+      const burst = ability.metrics.damage.burst;
+      const intercept = band === "lv0" ? burst.intercept.base : burst.intercept.max;
+      const scaling = band === "lv0" ? burst.scaling.base : burst.scaling.max;
+      return computeValueAtSpirit(intercept, scaling, spirit);
     },
   },
   {
     id: "burstDpm",
     label: "Burst Damage per Minute",
     description: "Damage output per minute assuming the ability is used on cooldown",
-    getBaseValue: (ability) => ability.burstDpmBase,
-    getMaxValue: (ability) => ability.burstDpmMax,
+    getBaseValue: (ability) => ability.metrics.damage.burst.perMinute?.base ?? null,
+    getMaxValue: (ability) => ability.metrics.damage.burst.perMinute?.max ?? null,
     computeAtSpirit: (ability, spirit, band) => {
-      const referenceSpirit = band === "lv0" ? ability.baseSpiritPower : ability.maxSpiritPower;
-      const scaling = band === "lv0" ? ability.spiritScalingBase : ability.spiritScalingMax;
-      const referenceValue = band === "lv0" ? ability.burstDpmBase : ability.burstDpmMax;
-      if (referenceValue === null) {
+      const burst = ability.metrics.damage.burst;
+      const intercept = band === "lv0" ? burst.intercept.base : burst.intercept.max;
+      const scaling = band === "lv0" ? burst.scaling.base : burst.scaling.max;
+      if (intercept === null && scaling === null) {
         return null;
       }
-
-      const effectiveScaling = scaling ?? 0;
-      const intercept = referenceValue - referenceSpirit * effectiveScaling;
-      return intercept + spirit * effectiveScaling;
+      const damage = computeValueAtSpirit(intercept, scaling, spirit);
+      if (damage === null) {
+        return null;
+      }
+      const charges = getRangeValue(ability.metrics.cadence.charges, band) ?? 1;
+      const cooldown = getRangeValue(ability.metrics.cadence.cooldown, band);
+      if (!cooldown || cooldown <= 0) {
+        return null;
+      }
+      return (damage * Math.max(charges, 1) * 60) / cooldown;
     },
   },
   {
-    id: "spiritScaling",
-    label: "Total Spirit Scaling",
-    description: "Aggregate spirit scaling applied to the ability per cast",
-    getBaseValue: (ability) => ability.spiritScalingBase,
-    getMaxValue: (ability) => ability.spiritScalingMax,
+    id: "burstScaling",
+    label: "Burst Scaling per Spirit",
+    description: "Aggregate burst scaling applied to the ability per point of spirit",
+    getBaseValue: (ability) => ability.metrics.damage.burst.scaling.base ?? null,
+    getMaxValue: (ability) => ability.metrics.damage.burst.scaling.max ?? null,
     computeAtSpirit: (ability, _spirit, band) =>
-      band === "lv0" ? ability.spiritScalingBase ?? null : ability.spiritScalingMax ?? null,
+      band === "lv0"
+        ? ability.metrics.damage.burst.scaling.base ?? null
+        : ability.metrics.damage.burst.scaling.max ?? null,
+  },
+  {
+    id: "sustainedDps",
+    label: "Sustained Damage per Second",
+    description: "Damage per second from sustained components at the sampled spirit value",
+    getBaseValue: (ability) => ability.metrics.damage.sustained.value.base,
+    getMaxValue: (ability) => ability.metrics.damage.sustained.value.max,
+    computeAtSpirit: (ability, spirit, band) => {
+      const sustained = ability.metrics.damage.sustained;
+      const intercept = band === "lv0" ? sustained.intercept.base : sustained.intercept.max;
+      const scaling = band === "lv0" ? sustained.scaling.base : sustained.scaling.max;
+      return computeValueAtSpirit(intercept, scaling, spirit);
+    },
+  },
+  {
+    id: "sustainedScaling",
+    label: "Sustained Scaling per Spirit",
+    description: "Per-spirit scaling contributed by sustained damage components",
+    getBaseValue: (ability) => ability.metrics.damage.sustained.scaling.base ?? null,
+    getMaxValue: (ability) => ability.metrics.damage.sustained.scaling.max ?? null,
+    computeAtSpirit: (ability, _spirit, band) =>
+      band === "lv0"
+        ? ability.metrics.damage.sustained.scaling.base ?? null
+        : ability.metrics.damage.sustained.scaling.max ?? null,
+  },
+  {
+    id: "stunDuration",
+    label: "Stun Duration",
+    description: "Maximum stun duration applied by the ability",
+    getBaseValue: (ability) => ability.metrics.control.summary.stun?.base ?? null,
+    getMaxValue: (ability) => ability.metrics.control.summary.stun?.max ?? null,
   },
 ];
 
@@ -81,6 +188,11 @@ const levelViewOptions = [
   { value: "max", label: "Max Level" },
   { value: "both", label: "Both" },
 ] as const;
+
+const damageFilterOptions: Array<{ value: AbilityTag; label: string }> = [
+  { value: "burst", label: "Burst" },
+  { value: "sustained", label: "DPS" },
+];
 
 type LevelView = (typeof levelViewOptions)[number]["value"];
 
@@ -123,6 +235,7 @@ export function HeroAbilitiesChart({ data }: HeroAbilityChartProps) {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [showDisabled, setShowDisabled] = React.useState(false);
   const [levelView, setLevelView] = React.useState<LevelView>("both");
+  const [damageFilters, setDamageFilters] = React.useState<AbilityTag[]>([]);
 
   const preparedAbilities = React.useMemo(() => {
     return data
@@ -138,15 +251,27 @@ export function HeroAbilitiesChart({ data }: HeroAbilityChartProps) {
   const filteredAbilities = React.useMemo(() => {
     const normalized = searchQuery.trim().toLowerCase();
     if (!normalized) {
-      return preparedAbilities;
+      return preparedAbilities.filter((ability) => {
+        if (!damageFilters.length) {
+          return true;
+        }
+        return damageFilters.some((filter) => ability.tags.includes(filter));
+      });
     }
 
     return preparedAbilities.filter((ability) => {
-      return (
-        ability.heroName.toLowerCase().includes(normalized) || ability.abilityName.toLowerCase().includes(normalized)
-      );
+      const matchesSearch =
+        ability.heroName.toLowerCase().includes(normalized) ||
+        ability.abilityName.toLowerCase().includes(normalized);
+      if (!matchesSearch) {
+        return false;
+      }
+      if (!damageFilters.length) {
+        return true;
+      }
+      return damageFilters.some((filter) => ability.tags.includes(filter));
     });
-  }, [preparedAbilities, searchQuery]);
+  }, [damageFilters, preparedAbilities, searchQuery]);
 
   const [selectedAbilityKeys, setSelectedAbilityKeys] = React.useState<string[]>(() =>
     preparedAbilities.slice(0, 5).map((ability) => getAbilityKey(ability)),
@@ -158,13 +283,17 @@ export function HeroAbilitiesChart({ data }: HeroAbilityChartProps) {
   );
 
   const getAbilityCategoryLabel = React.useCallback((ability: HeroAbilityRow): string | null => {
-    const hasBurst = ability.hasBurstComponents;
-    const hasDps = ability.hasDpsComponents;
-
-    if (hasBurst && hasDps) return "Burst + DPS";
-    if (hasBurst) return "Burst";
-    if (hasDps) return "DPS";
-    return null;
+    if (!ability.tags.length) {
+      return null;
+    }
+    const preferredOrder: AbilityTag[] = ["burst", "sustained", "crowd-control", "buff", "debuff"];
+    const labels = preferredOrder
+      .filter((tag) => ability.tags.includes(tag))
+      .map((tag) => TAG_LABELS[tag] ?? tag);
+    if (!labels.length) {
+      return null;
+    }
+    return labels.join(" · ");
   }, []);
 
   React.useEffect(() => {
@@ -214,9 +343,70 @@ export function HeroAbilitiesChart({ data }: HeroAbilityChartProps) {
 
       const colorIndex = abilityColorIndex.get(key) ?? 0;
 
+      let variants: Array<{ key: string; label: string; totals: AbilityDamageTotals }> | null = null;
+
+      if (selectedMetric.id === "burstDamage" || selectedMetric.id === "burstDpm") {
+        variants = createDamageVariantConfigs(ability.metrics.damage.burst);
+      } else if (selectedMetric.id === "sustainedDps") {
+        variants = createDamageVariantConfigs(ability.metrics.damage.sustained);
+      }
+
+      if (variants && variants.length > 0) {
+        return variants
+          .flatMap((variant) =>
+            bands
+              .map<MetricLineChartSeries | null>((band) => {
+                const data = spiritSamples
+                  .map((spirit) => {
+                    if (selectedMetric.id === "burstDpm") {
+                      const charges =
+                        getRangeValue(ability.metrics.cadence.charges, band) ?? 1;
+                      const cooldown = getRangeValue(ability.metrics.cadence.cooldown, band);
+                      if (!cooldown || cooldown <= 0) {
+                        return null;
+                      }
+                      const multiplier = (Math.max(charges, 1) * 60) / cooldown;
+                      const damage = computeDamageFromTotals(variant.totals, spirit, band);
+                      return { x: spirit, y: damage * multiplier };
+                    }
+
+                    const value = computeDamageFromTotals(variant.totals, spirit, band);
+                    return { x: spirit, y: value };
+                  })
+                  .filter((point): point is MetricLineChartDatum => point !== null);
+
+                if (!data.length) {
+                  return null;
+                }
+
+                const categoryLabel = getAbilityCategoryLabel(ability);
+                const bandLabel = band === "lv0" ? "Lv0" : "Max";
+                const variantLabel = variant.label ? ` · ${variant.label}` : "";
+
+                let strokeDasharray: string | undefined;
+                if (variant.key === "min") {
+                  strokeDasharray = "2 4";
+                } else if (band === "lv0" && levelView === "both") {
+                  strokeDasharray = "6 4";
+                }
+
+                return {
+                  id: `${key}-${variant.key}-${band}`,
+                  label: `${ability.heroName} – ${ability.abilityName} (${bandLabel}${categoryLabel ? ` · ${categoryLabel}` : ""}${variantLabel})`,
+                  data,
+                  colorIndex,
+                  strokeDasharray,
+                } satisfies MetricLineChartSeries;
+              })
+              .filter((series): series is MetricLineChartSeries => Boolean(series)),
+          )
+          .flat();
+      }
+
       return bands
         .map<MetricLineChartSeries | null>((band) => {
-          const referenceValue = band === "lv0" ? selectedMetric.getBaseValue(ability) : selectedMetric.getMaxValue(ability);
+          const referenceValue =
+            band === "lv0" ? selectedMetric.getBaseValue(ability) : selectedMetric.getMaxValue(ability);
           if (referenceValue === null) {
             return null;
           }
@@ -268,6 +458,12 @@ export function HeroAbilitiesChart({ data }: HeroAbilityChartProps) {
   const handleSelectAll = React.useCallback(() => {
     setSelectedAbilityKeys(filteredAbilities.map((ability) => getAbilityKey(ability)));
   }, [filteredAbilities]);
+  const handleToggleDamageFilter = React.useCallback((tag: AbilityTag) => {
+    setDamageFilters((current) =>
+      current.includes(tag) ? current.filter((existing) => existing !== tag) : [...current, tag],
+    );
+  }, []);
+
 
   const handleClearSelection = React.useCallback(() => {
     setSelectedAbilityKeys([]);
@@ -340,6 +536,20 @@ export function HeroAbilitiesChart({ data }: HeroAbilityChartProps) {
                 >
                   Clear
                 </button>
+                {damageFilterOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-2 rounded-md border border-zinc-200 px-2 py-1 text-xs text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={damageFilters.includes(option.value)}
+                      onChange={() => handleToggleDamageFilter(option.value)}
+                      className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500 dark:border-zinc-600"
+                    />
+                    {option.label}
+                  </label>
+                ))}
                 <label className="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-300">
                   <input
                     type="checkbox"

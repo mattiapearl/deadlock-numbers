@@ -95,6 +95,7 @@ export type DataTableContext<TData> = {
   pinColumn: (columnId: string, position: "left" | "right" | "none") => void;
   openColumnManager: () => void;
   exportToCsv: (options?: { filename?: string }) => void;
+  pageSizeOptions: number[];
 };
 
 export type DataTableProps<TData> = {
@@ -105,6 +106,7 @@ export type DataTableProps<TData> = {
   getRowId?: TableOptions<TData>["getRowId"];
   className?: string;
   initialPageSize?: number;
+  pageSizeOptions?: number[];
 };
 
 export function DataTable<TData>({
@@ -115,6 +117,7 @@ export function DataTable<TData>({
   getRowId,
   className,
   initialPageSize,
+  pageSizeOptions,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -122,7 +125,6 @@ export function DataTable<TData>({
   const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>({ left: [], right: [] });
   const [canScrollLeft, setCanScrollLeft] = React.useState(false);
   const [canScrollRight, setCanScrollRight] = React.useState(false);
-  const [hoverScrollDirection, setHoverScrollDirection] = React.useState(0);
 
   const initialColumnOrder = React.useMemo(
     () => columns.map((column, index) => deriveColumnId(column, index)),
@@ -135,7 +137,6 @@ export function DataTable<TData>({
   const lastPinnedTimeoutRef = React.useRef<number | null>(null);
 
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const containerRef = React.useRef<HTMLDivElement>(null);
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -309,6 +310,15 @@ export function DataTable<TData>({
     });
   }, []);
 
+  const effectivePageSizeOptions = React.useMemo(() => {
+    const defaults = pageSizeOptions && pageSizeOptions.length ? pageSizeOptions : [25, 50, 75, 100];
+    const set = new Set<number>(defaults.filter((value) => Number.isFinite(value) && value > 0));
+    if (data.length > 0) {
+      set.add(data.length);
+    }
+    return Array.from(set).sort((a, b) => a - b);
+  }, [data.length, pageSizeOptions]);
+
   const performColumnSearch = React.useCallback(
     (rawTerm: string) => {
       const normalized = rawTerm.trim().toLowerCase();
@@ -450,6 +460,10 @@ export function DataTable<TData>({
   }, [data.length, table, initialPageSize]);
 
   React.useEffect(() => {
+    table.setPageIndex(0);
+  }, [table, globalFilter, columnFilters, data.length]);
+
+  React.useEffect(() => {
     updateScrollState();
   }, [updateScrollState, data.length]);
 
@@ -490,30 +504,15 @@ export function DataTable<TData>({
     };
   }, [updateScrollState, data.length]);
 
-  React.useEffect(() => {
-    if (hoverScrollDirection === 0) return;
-    let frameId: number;
-
-    const step = () => {
+  const handleScrollByPage = React.useCallback(
+    (direction: -1 | 1) => {
       const el = contentRef.current;
       if (!el) return;
-      const scrollAmount = hoverScrollDirection * 16;
-      el.scrollLeft += scrollAmount;
-      updateScrollState();
-      frameId = requestAnimationFrame(step);
-    };
-
-    frameId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frameId);
-  }, [hoverScrollDirection, updateScrollState]);
-
-  React.useEffect(() => {
-    if (hoverScrollDirection < 0 && !canScrollLeft) {
-      setHoverScrollDirection(0);
-    } else if (hoverScrollDirection > 0 && !canScrollRight) {
-      setHoverScrollDirection(0);
-    }
-  }, [hoverScrollDirection, canScrollLeft, canScrollRight]);
+      const offset = el.clientWidth * 0.6 * direction;
+      el.scrollBy({ left: offset, behavior: "smooth" });
+    },
+    [],
+  );
 
   const context: DataTableContext<TData> = React.useMemo(
     () => ({
@@ -606,6 +605,7 @@ export function DataTable<TData>({
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       },
+      pageSizeOptions: effectivePageSizeOptions,
     }),
     [
       table,
@@ -619,6 +619,7 @@ export function DataTable<TData>({
       columnOrder,
       pinColumn,
       openColumnManager,
+      effectivePageSizeOptions,
     ],
   );
 
@@ -626,31 +627,13 @@ export function DataTable<TData>({
     <div className={className ?? "space-y-4"}>
       {toolbar ? toolbar(context) : null}
 
-      <div
-        ref={containerRef}
-        className="relative"
-        onPointerLeave={() => setHoverScrollDirection(0)}
-        onPointerMove={(event) => {
-          const container = containerRef.current;
-          if (!container) return;
-          const rect = container.getBoundingClientRect();
-          const x = event.clientX - rect.left;
-          const edgeThreshold = Math.min(96, rect.width / 4);
-          if (x < edgeThreshold && canScrollLeft) {
-            setHoverScrollDirection(-1);
-          } else if (rect.width - x < edgeThreshold && canScrollRight) {
-            setHoverScrollDirection(1);
-          } else {
-            setHoverScrollDirection(0);
-          }
-        }}
-      >
+      <div className="relative">
         <div
           ref={contentRef}
           className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
         >
           <table className="min-w-full divide-y divide-zinc-200 text-left text-sm text-zinc-900 dark:divide-zinc-800 dark:text-zinc-100">
-            <thead className="bg-zinc-50 text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+            <thead className="sticky top-0 z-20 bg-zinc-50 text-xs font-semibold uppercase tracking-wide text-zinc-600 shadow-sm dark:bg-zinc-800 dark:text-zinc-300">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -669,6 +652,7 @@ export function DataTable<TData>({
                         scope="col"
                         className={`px-4 py-3 align-bottom ${isPinned ? "bg-zinc-50 dark:bg-zinc-800" : ""}`}
                         style={{
+                          top: 0,
                           ...getColumnSizeStyle(column),
                           ...getPinnedStyles(column, "header"),
                         }}
@@ -731,28 +715,22 @@ export function DataTable<TData>({
         {canScrollLeft && (
           <button
             type="button"
-            className="pointer-events-auto absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-md ring-1 ring-zinc-200 transition hover:bg-white dark:bg-zinc-900/90 dark:ring-zinc-700"
-            onClick={() => {
-              const el = contentRef.current;
-              if (!el) return;
-              el.scrollBy({ left: -el.clientWidth * 0.6, behavior: "smooth" });
-            }}
+            aria-label="Scroll table left"
+            className="pointer-events-auto absolute inset-y-0 left-0 flex w-12 items-center justify-center rounded-l-2xl bg-gradient-to-r from-white via-white/95 to-white/0 text-lg font-semibold text-zinc-500 transition hover:via-white dark:from-zinc-900 dark:via-zinc-900/95 dark:text-zinc-200 dark:hover:via-zinc-900"
+            onClick={() => handleScrollByPage(-1)}
           >
-            <span className="text-lg font-semibold text-zinc-600 dark:text-zinc-200">◀</span>
+            <span aria-hidden>◀</span>
           </button>
         )}
 
         {canScrollRight && (
           <button
             type="button"
-            className="pointer-events-auto absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-md ring-1 ring-zinc-200 transition hover:bg-white dark:bg-zinc-900/90 dark:ring-zinc-700"
-            onClick={() => {
-              const el = contentRef.current;
-              if (!el) return;
-              el.scrollBy({ left: el.clientWidth * 0.6, behavior: "smooth" });
-            }}
+            aria-label="Scroll table right"
+            className="pointer-events-auto absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-2xl bg-gradient-to-l from-white via-white/95 to-white/0 text-lg font-semibold text-zinc-500 transition hover:via-white dark:from-zinc-900 dark:via-zinc-900/95 dark:text-zinc-200 dark:hover:via-zinc-900"
+            onClick={() => handleScrollByPage(1)}
           >
-            <span className="text-lg font-semibold text-zinc-600 dark:text-zinc-200">▶</span>
+            <span aria-hidden>▶</span>
           </button>
         )}
       </div>

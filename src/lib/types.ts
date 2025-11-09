@@ -95,6 +95,18 @@ export type WeaponInfo = {
   intra_burst_cycle_time?: number | null;
   damage_falloff_start_range?: number | null;
   damage_falloff_end_range?: number | null;
+  range?: number | null;
+  bullet_lifetime?: number | null;
+  bullet_speed_curve?: {
+    spline?: Array<{
+      x?: number | null;
+      y?: number | null;
+      slope_incoming?: number | null;
+      slope_outgoing?: number | null;
+    }> | null;
+    domain_maxs?: number[] | null;
+    domain_mins?: number[] | null;
+  } | null;
 };
 
 export type WeaponItem = ItemBase & {

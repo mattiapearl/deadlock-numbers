@@ -41,6 +41,7 @@ export type MetricLineChartProps = {
     primaryColumnClassName?: string;
     secondaryColumnClassName?: string;
   };
+  invertY?: boolean;
 };
 
 type TooltipRenderArgs = {
@@ -72,6 +73,7 @@ export function MetricLineChart({
   valueFormatter = defaultValueFormatter,
   xValueFormatter,
   tooltipOptions,
+  invertY = false,
 }: MetricLineChartProps) {
   const primaryColumnLimit = tooltipOptions?.primaryColumnLimit ?? 10;
   const [legendHeader, setLegendHeader] = React.useState<string | null>(null);
@@ -115,6 +117,21 @@ export function MetricLineChart({
     };
   }, []);
 
+  const transformedSeries = React.useMemo(() => {
+    if (!invertY) {
+      return series;
+    }
+    return series.map((item) => ({
+      ...item,
+      data: item.data.map((datum) => ({ x: datum.x, y: -datum.y })),
+    }));
+  }, [invertY, series]);
+
+  const mapValueForDisplay = React.useCallback(
+    (value: number) => (invertY ? -value : value),
+    [invertY],
+  );
+
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
       {header ? <div className="mb-4 text-sm text-zinc-600 dark:text-zinc-300">{header}</div> : null}
@@ -128,10 +145,14 @@ export function MetricLineChart({
             return (
               <XYChart height={parentHeight} width={width} xScale={{ type: "linear" }} yScale={{ type: "linear" }}>
                 <AnimatedAxis orientation="bottom" label={xLabel} />
-                <AnimatedAxis orientation="left" label={yLabel} />
+                <AnimatedAxis
+                  orientation="left"
+                  label={yLabel}
+                  tickFormat={(value) => valueFormatter(mapValueForDisplay(value as number))}
+                />
                 <AnimatedGrid columns={false} />
 
-                {series.map((item, index) => (
+                {transformedSeries.map((item, index) => (
                   <AnimatedLineSeries
                     key={item.id}
                     dataKey={item.label}
@@ -154,7 +175,7 @@ export function MetricLineChart({
                     }
 
                     const colorByName = new Map(
-                      series.map((item, index) => [
+                      transformedSeries.map((item, index) => [
                         item.label,
                         chartColorPalette[(item.colorIndex ?? index) % chartColorPalette.length],
                       ]),
@@ -164,9 +185,9 @@ export function MetricLineChart({
                       .map(([key, datum]) => ({
                         key,
                         color: colorByName.get(key) ?? colorScale?.(key) ?? "#2563EB",
-                        value: datum?.datum?.y ?? 0,
+                        value: mapValueForDisplay(datum?.datum?.y ?? 0),
                       }))
-                      .sort((a, b) => b.value - a.value);
+                      .sort((a, b) => (invertY ? a.value - b.value : b.value - a.value));
 
                     const headerValue = tooltipData.nearestDatum?.datum?.x;
                     const headerLabel =
@@ -227,7 +248,7 @@ export function MetricLineChart({
         )}
       </div>
 
-      {!series.length && emptyMessage ? (
+      {!transformedSeries.length && emptyMessage ? (
         <p className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">{emptyMessage}</p>
       ) : null}
     </div>
