@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/data-table";
@@ -239,12 +238,13 @@ export function HeroAbilityTable({ data }: HeroAbilityTableProps) {
       return (
         <div className="flex items-center gap-3">
           {hero.heroImage ? (
-            <Image
+            <img
               src={hero.heroImage}
               alt={hero.heroName}
               width={40}
               height={40}
               className="h-10 w-10 rounded-lg object-cover shadow-sm"
+              loading="lazy"
             />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-200 text-xs font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-300">

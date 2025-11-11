@@ -3,6 +3,7 @@ import { HeroGrowthChart } from "@/components/hero-growth-chart";
 import { HeroAbilitiesChart } from "@/components/hero-abilities-chart";
 import { HeroAbilityTable } from "@/components/hero-abilities-table";
 import { HeroDamageCalculator } from "@/components/hero-damage-calculator";
+import { FantasyDraftView } from "@/components/fantasy-draft-view";
 import { getHeroes, getItems } from "@/lib/deadlock-api";
 import { buildHeroGrowthRows } from "@/lib/hero-growth";
 import { buildHeroAbilityRows } from "@/lib/hero-abilities";
@@ -134,12 +135,23 @@ export default async function Home() {
 
         <section className="space-y-6">
           <div className="flex flex-col gap-1">
+            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">View 5 · Fantasy Draft Assistant</h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              Quickly theorycraft scrims by assigning heroes to two teams and experimenting with ban combinations. All picks and bans are limited to currently enabled heroes.
+            </p>
+          </div>
+
+          <FantasyDraftView heroes={heroes} />
+        </section>
+
+        <section className="space-y-6">
+          <div className="flex flex-col gap-1">
             <div className="mb-2">
               <span className="inline-block rounded bg-yellow-200 px-2 py-1 text-xs font-semibold text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
                 Experimental
               </span>
             </div>
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">View 5 · Damage Calculator</h2>
+            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">View 6 · Damage Calculator</h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400">
               Model full hero damage against a target by combining gun DPS, burst rotations, sustained uptime, percentage-based
               health effects, and amplification from amps or shred. Tune enemy health, hero level, and spirit to compare time-to-kill curves.
