@@ -8,7 +8,7 @@ async function fetchFromApi<T>(path: string): Promise<T> {
       Accept: "application/json",
     },
     next: {
-      revalidate: 60 * 30,
+      revalidate: 60,
     },
   });
 
