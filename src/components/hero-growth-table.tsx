@@ -422,6 +422,7 @@ export function HeroGrowthTable({ data }: HeroGrowthTableProps) {
     <DataTable
       data={filteredData}
       columns={columns}
+      storageKey="hero-growth-table"
       toolbar={(context) => (
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">

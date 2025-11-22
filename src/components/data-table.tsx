@@ -107,7 +107,43 @@ export type DataTableProps<TData> = {
   className?: string;
   initialPageSize?: number;
   pageSizeOptions?: number[];
+  storageKey?: string;
 };
+
+type TableState = {
+  sorting: SortingState;
+  columnFilters: ColumnFiltersState;
+  globalFilter: string;
+  columnPinning: ColumnPinningState;
+  columnOrder: string[];
+  pageSize: number;
+};
+
+function loadTableState(storageKey: string | undefined): Partial<TableState> | null {
+  if (!storageKey || typeof window === "undefined") {
+    return null;
+  }
+  try {
+    const stored = localStorage.getItem(`table-state-${storageKey}`);
+    if (!stored) {
+      return null;
+    }
+    return JSON.parse(stored) as Partial<TableState>;
+  } catch {
+    return null;
+  }
+}
+
+function saveTableState(storageKey: string | undefined, state: Partial<TableState>) {
+  if (!storageKey || typeof window === "undefined") {
+    return;
+  }
+  try {
+    localStorage.setItem(`table-state-${storageKey}`, JSON.stringify(state));
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 export function DataTable<TData>({
   data,
@@ -118,19 +154,29 @@ export function DataTable<TData>({
   className,
   initialPageSize,
   pageSizeOptions,
+  storageKey,
 }: DataTableProps<TData>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = React.useState("");
-  const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>({ left: [], right: [] });
-  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
-  const [canScrollRight, setCanScrollRight] = React.useState(false);
-
   const initialColumnOrder = React.useMemo(
     () => columns.map((column, index) => deriveColumnId(column, index)),
     [columns],
   );
-  const [columnOrder, setColumnOrder] = React.useState<string[]>(initialColumnOrder);
+
+  const savedState = React.useMemo(() => loadTableState(storageKey), [storageKey]);
+
+  const [sorting, setSorting] = React.useState<SortingState>(savedState?.sorting ?? []);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    savedState?.columnFilters ?? [],
+  );
+  const [globalFilter, setGlobalFilter] = React.useState(savedState?.globalFilter ?? "");
+  const [columnPinning, setColumnPinning] = React.useState<ColumnPinningState>(
+    savedState?.columnPinning ?? { left: [], right: [] },
+  );
+  const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+  const [canScrollRight, setCanScrollRight] = React.useState(false);
+
+  const [columnOrder, setColumnOrder] = React.useState<string[]>(
+    savedState?.columnOrder ?? initialColumnOrder,
+  );
   const [isColumnManagerOpen, setIsColumnManagerOpen] = React.useState(false);
   const [columnSearchTerm, setColumnSearchTerm] = React.useState("");
   const [lastPinnedColumnId, setLastPinnedColumnId] = React.useState<string | null>(null);
@@ -451,17 +497,33 @@ export function DataTable<TData>({
 
   React.useEffect(() => {
     const defaultSize = initialPageSize ?? Math.max(100, data.length);
-    const pageSize = data.length === 0
-      ? (initialPageSize ?? 100)
-      : initialPageSize
-        ? Math.min(initialPageSize, data.length)
-        : Math.max(100, data.length);
+    const savedPageSize = savedState?.pageSize;
+    const pageSize = savedPageSize
+      ? savedPageSize
+      : data.length === 0
+        ? (initialPageSize ?? 100)
+        : initialPageSize
+          ? Math.min(initialPageSize, data.length)
+          : Math.max(100, data.length);
     table.setPageSize(pageSize === 0 ? defaultSize : pageSize);
-  }, [data.length, table, initialPageSize]);
+  }, [data.length, table, initialPageSize, savedState?.pageSize]);
 
   React.useEffect(() => {
     table.setPageIndex(0);
   }, [table, globalFilter, columnFilters, data.length]);
+
+  // Persist state to localStorage
+  React.useEffect(() => {
+    if (!storageKey) return;
+    saveTableState(storageKey, {
+      sorting,
+      columnFilters,
+      globalFilter,
+      columnPinning,
+      columnOrder,
+      pageSize: table.getState().pagination.pageSize,
+    });
+  }, [storageKey, sorting, columnFilters, globalFilter, columnPinning, columnOrder, table]);
 
   React.useEffect(() => {
     updateScrollState();
@@ -627,6 +689,31 @@ export function DataTable<TData>({
     <div className={className ?? "space-y-4"}>
       {toolbar ? toolbar(context) : null}
 
+      {(canScrollLeft || canScrollRight) && (
+        <div className="flex items-center justify-end gap-2">
+          {canScrollLeft && (
+            <button
+              type="button"
+              aria-label="Scroll table left"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-lg font-semibold text-zinc-500 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              onClick={() => handleScrollByPage(-1)}
+            >
+              <span aria-hidden>◀</span>
+            </button>
+          )}
+          {canScrollRight && (
+            <button
+              type="button"
+              aria-label="Scroll table right"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-lg font-semibold text-zinc-500 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              onClick={() => handleScrollByPage(1)}
+            >
+              <span aria-hidden>▶</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="relative">
         <div
           ref={contentRef}
@@ -711,28 +798,6 @@ export function DataTable<TData>({
             </tbody>
           </table>
         </div>
-
-        {canScrollLeft && (
-          <button
-            type="button"
-            aria-label="Scroll table left"
-            className="pointer-events-auto absolute inset-y-0 left-0 flex w-12 items-center justify-center rounded-l-2xl bg-gradient-to-r from-white via-white/95 to-white/0 text-lg font-semibold text-zinc-500 transition hover:via-white dark:from-zinc-900 dark:via-zinc-900/95 dark:text-zinc-200 dark:hover:via-zinc-900"
-            onClick={() => handleScrollByPage(-1)}
-          >
-            <span aria-hidden>◀</span>
-          </button>
-        )}
-
-        {canScrollRight && (
-          <button
-            type="button"
-            aria-label="Scroll table right"
-            className="pointer-events-auto absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-2xl bg-gradient-to-l from-white via-white/95 to-white/0 text-lg font-semibold text-zinc-500 transition hover:via-white dark:from-zinc-900 dark:via-zinc-900/95 dark:text-zinc-200 dark:hover:via-zinc-900"
-            onClick={() => handleScrollByPage(1)}
-          >
-            <span aria-hidden>▶</span>
-          </button>
-        )}
       </div>
 
       {footer ? footer(context) : null}

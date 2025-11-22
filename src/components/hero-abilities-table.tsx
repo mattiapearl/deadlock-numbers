@@ -655,6 +655,7 @@ export function HeroAbilityTable({ data }: HeroAbilityTableProps) {
       data={filteredData}
       columns={columns}
       initialPageSize={50}
+      storageKey="hero-abilities-table"
       toolbar={(context) => {
         const handleSearchChange = (() => {
           let timeoutId: number | undefined;
